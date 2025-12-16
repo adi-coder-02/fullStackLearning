@@ -1,0 +1,9 @@
+# Ignore dotenv/env files
+.env
+.env.*
+*.env
+
+# Ignore node modules
+node_modules
+/.vscode
+./dist
