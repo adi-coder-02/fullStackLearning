@@ -2,29 +2,32 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import {User} from "../models/User.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
-
 import ApiResponse from "../utils/ApiResponse.js";
+import jwt from "jsonwebtoken";
 
-const generateAccessAndRefreshTokens = async(userId) => {
-    try{
+
+const generateAccessAndRefreshTokens = async (userId) => {
+    try {
         const user = await User.findById(userId);
-        const refreshToken = user.generateRefreshToken();
+
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+
         const accessToken = user.generateAccessToken();
+        const refreshToken = user.generateRefreshToken();
 
         user.refreshToken = refreshToken;
-        await user.save({
-            validateBeforeSave: false
-        });
 
-        return {
-            accessToken,
-            refreshToken
-        }
-    }
-    catch(error){
+        await user.save({ validateBeforeSave: false });
+
+        return { accessToken, refreshToken };
+    } catch (error) {
+        console.error("Token generation error:", error.message);
         throw new ApiError(500, "Failed to generate tokens");
     }
-}
+};
+
 
 const registerUser = asyncHandler(async (req , res) =>{
     // Registration logic here
@@ -91,7 +94,7 @@ const loginUser = asyncHandler(async (req , res) =>{
     // Login logic here
     const { email, username, password } = req.body;
 
-    if(!email || !username){
+    if (!(email || username)) {
         throw new ApiError(400, "Email or username is required");
     }
 
@@ -110,7 +113,7 @@ const loginUser = asyncHandler(async (req , res) =>{
 
     const {accessToken , refreshToken} = await generateAccessAndRefreshTokens(user._id);
 
-    const loggedInUser = User.findById(user._id).
+    const loggedInUser = await User.findById(user._id).
     select("-password -refreshToken");
 
     const options = {
