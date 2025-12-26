@@ -6,7 +6,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 
 
-
+// Function to generate access and refresh tokens
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
         const user = await User.findById(userId);
@@ -29,7 +29,7 @@ const generateAccessAndRefreshTokens = async (userId) => {
     }
 };
 
-
+// User Registration
 const registerUser = asyncHandler(async (req , res) =>{
     // Registration logic here
     // res.status(200).json({
@@ -91,6 +91,7 @@ const registerUser = asyncHandler(async (req , res) =>{
     );
 });
 
+// User Login
 const loginUser = asyncHandler(async (req , res) =>{
     // Login logic here
     const { email, username, password } = req.body;
@@ -139,6 +140,7 @@ const loginUser = asyncHandler(async (req , res) =>{
     )
 });
 
+// User Logout
 const logoutUser = asyncHandler(async (req , res) =>{
     await User.findByIdAndUpdate(
         req.user._id,
@@ -165,6 +167,7 @@ const logoutUser = asyncHandler(async (req , res) =>{
     );
 });
 
+// Refresh Access Token
 const refreshAccessToken = asyncHandler(async (req , res) => {
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
@@ -214,6 +217,7 @@ const refreshAccessToken = asyncHandler(async (req , res) => {
     }
 })
 
+// Change Current Password
 const changeCurrentPassword = asyncHandler(async (req , res) =>{
     const { oldPassword, newPassword } = req.body;
 
@@ -233,6 +237,7 @@ const changeCurrentPassword = asyncHandler(async (req , res) =>{
     .json(new ApiResponse(200, {}, "Password changed successfully"));
 });
 
+// Get Current User
 const getCurrentUser = asyncHandler(async (req , res) =>{
     return res
     .status(200)
@@ -241,6 +246,7 @@ const getCurrentUser = asyncHandler(async (req , res) =>{
     );
 });
 
+// Update Account Details 
 const updateAccountDetails = asyncHandler(async (req , res) =>{
     const { fullName } = req.body;
 
@@ -267,6 +273,7 @@ const updateAccountDetails = asyncHandler(async (req , res) =>{
     );
 });
 
+// Update User Avatar
 const updateUserAvatar = asyncHandler(async (req , res) =>{
     const avatarLocalPath = req.file?.path;
     if(!avatarLocalPath){
@@ -297,6 +304,7 @@ const updateUserAvatar = asyncHandler(async (req , res) =>{
     );
 });
 
+// Update User Cover Image
 const updateUserCoverImage = asyncHandler(async (req , res) =>{
     const coverImageLocalPath = req.file?.path;
     if(!coverImageLocalPath){
@@ -327,6 +335,7 @@ const updateUserCoverImage = asyncHandler(async (req , res) =>{
     );
 });
 
+// Get User Channel Profile
 const getUserChannelProfile = asyncHandler(async (req , res) =>{
 
     const { username } = req.params;
@@ -397,6 +406,62 @@ const getUserChannelProfile = asyncHandler(async (req , res) =>{
         new ApiResponse(200, channel[0], "Channel profile fetched successfully")
     )
 });
+
+// Get Watch History
+const getWatchHistory = asyncHandler(async (req , res) =>{
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user?._id)
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            owner: {
+                                $first: "$onwer"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            user[0].watchHistory,
+            "User watch history fetched successfully"
+        )
+    )
+});
+
 export {
     registerUser, 
     loginUser,
@@ -407,5 +472,6 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
-    getUserChannelProfile
+    getUserChannelProfile,
+    getWatchHistory
 };
